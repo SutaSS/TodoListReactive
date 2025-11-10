@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.todoapp.ui.TodoScreen
+import com.example.todolistreactive.ui.TodoScreen
 import com.example.todolistreactive.ui.theme.TodoListReactiveTheme
 
 class MainActivity : ComponentActivity() {
