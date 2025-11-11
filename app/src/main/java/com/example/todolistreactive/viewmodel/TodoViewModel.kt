@@ -1,62 +1,58 @@
 package com.example.todolistreactive.viewmodel
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import androidx.lifecycle.viewModelScope
 import com.example.todolistreactive.model.Todo
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 class TodoViewModel : ViewModel() {
 
-    // State utama: daftar semua Todo
     private val _todos = MutableStateFlow<List<Todo>>(emptyList())
     val todos: StateFlow<List<Todo>> = _todos
 
-    // Filter: "all", "active", "done"
     private val _filter = MutableStateFlow("all")
     val filter: StateFlow<String> = _filter
 
-    // Pencarian real-time
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
+
+    //Flow yang selalu berubah mengikuti todos, filter, dan pencarian
+    val filteredTodos: StateFlow<List<Todo>> = combine(_todos, _filter, _searchQuery) { todos, filter, query ->
+        var result = when (filter) {
+            "active" -> todos.filter { !it.isDone }
+            "done" -> todos.filter { it.isDone }
+            else -> todos
+        }
+        if (query.isNotBlank()) {
+            result = result.filter { it.title.contains(query, ignoreCase = true) }
+        }
+        result
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun setFilter(value: String) {
         _filter.value = value
     }
 
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+    fun setSearchQuery(value: String) {
+        _searchQuery.value = value
     }
 
-    // List hasil akhir setelah filter + pencarian
-    fun getFilteredTodos(): List<Todo> {
-        val filtered = when (_filter.value) {
-            "active" -> _todos.value.filter { !it.isDone }
-            "done" -> _todos.value.filter { it.isDone }
-            else -> _todos.value
-        }
-        return filtered.filter { it.title.contains(_searchQuery.value, ignoreCase = true) }
-    }
-
-    // Tambahkan tugas baru
     fun addTask(title: String) {
         val nextId = (_todos.value.maxOfOrNull { it.id } ?: 0) + 1
-        val newTask = Todo(id = nextId, title = title)
-        _todos.value = _todos.value + newTask
+        _todos.value = _todos.value + Todo(nextId, title)
     }
 
-    // Toggle status selesai/aktif
     fun toggleTask(id: Int) {
-        _todos.value = _todos.value.map { t ->
-            if (t.id == id) t.copy(isDone = !t.isDone) else t
+        _todos.value = _todos.value.map {
+            if (it.id == id) it.copy(isDone = !it.isDone) else it
         }
     }
 
-    // Hapus tugas berdasarkan ID
     fun deleteTask(id: Int) {
         _todos.value = _todos.value.filterNot { it.id == id }
     }
 
-    // Hitung jumlah semua, aktif, dan selesai
     fun getCounts(): Triple<Int, Int, Int> {
         val all = _todos.value.size
         val active = _todos.value.count { !it.isDone }
